@@ -78,3 +78,9 @@ kubectl apply -f nginx-deployment.yaml
 kubectl apply -f nginx-service.yaml 
 
 ------ end of expose nginx-deployment in kubernetes ------
+
+------- to install helm ------
+
+curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+----- end of install helm ------
