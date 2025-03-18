@@ -1,0 +1,14 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: public-ip-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 82.25.104.115/32  # Your public IP
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: example
+  namespace: metallb-system

@@ -1,0 +1,26 @@
+sudo kubeadm init --pod-network-cidr=10.5.0.0/16 --apiserver-advertise-address=10.5.0.8
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+sudo modprobe br_netfilter
+
+sudo kubeadm init --control-plane-endpoint=10.5.0.8 --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=10.5.0.8
+
+sudo chown $(id -u):$(id -g) /etc/kubernetes/admin.conf
+sudo chmod 644 /etc/kubernetes/admin.conf
+
+
+kubectl taint nodes k8s-master node-role.kubernetes.io/control-plane:NoSchedule-
+kubectl delete -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+kubectl delete deployment traefik -n kube-system
+kubectl delete svc traefik -n kube-system
+kubectl apply -f traefik-deployment.yaml
+kubectl apply -f traefik-service.yaml
+kubectl rollout restart deployment traefik -n kube-system
+
+
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+
+
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/baremetal/deploy.yaml
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/main/config/manifests/metallb-native.yaml
