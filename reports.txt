@@ -23,4 +23,7 @@ kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
 
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/baremetal/deploy.yaml
+
+
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/main/config/manifests/metallb-native.yaml
+kubectl apply -f metallb-config.yaml
