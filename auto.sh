@@ -86,7 +86,7 @@ echo "❌ Removing MetalLB webhook validation to avoid issues..."
 sudo -u master kubectl delete validatingwebhookconfigurations metallb-webhook-configuration
 
 echo "⚙️  Applying MetalLB address pool configuration..."
-sudo -u master kubectl apply -f /home/master/k8-nginx/metallb-config.yaml
+sudo -u master kubectl apply -f https://raw.githubusercontent.com/Anish13kumar/k8-nginx/refs/heads/main/metallb-config.yaml
 
 echo "🧩 Enabling kubectl bash completion for user 'master'..."
 sudo apt-get install bash-completion -y
