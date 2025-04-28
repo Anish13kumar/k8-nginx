@@ -23,7 +23,10 @@ sudo apt-get install -y kubelet kubeadm kubectl
 echo "🧩 Loading kernel modules for Kubernetes networking..."
 sudo modprobe overlay
 sudo modprobe br_netfilter
-
+echo "🐳 Installing Docker..."
+curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+sudo sh /tmp/get-docker.sh
+sudo usermod -aG docker $HOSTNAME
 echo "📁 Creating containerd configuration directory..."
 sudo mkdir -p /etc/containerd
 
@@ -35,41 +38,61 @@ sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/conf
 
 echo "🔁 Restarting containerd service..."
 sudo systemctl restart containerd
+# 🛜 Get wg0 IP address
+echo "🌐 Detecting wg0 interface IP address..."
+WG0_IP=$(ip -4 addr show wg0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+
+if [ -z "$WG0_IP" ]; then
+  echo "❌ Error: Could not find IP address for wg0 interface."
+  exit 1
+fi
+
+echo "✅ Found wg0 IP address: $WG0_IP"
+
+# ✏️ Set KUBELET_EXTRA_ARGS
+echo "⚙️ Setting KUBELET_EXTRA_ARGS in /etc/default/kubelet..."
+echo "KUBELET_EXTRA_ARGS=--node-ip=$WG0_IP" | sudo tee /etc/default/kubelet > /dev/null
+
+echo "🔁 Reloading systemd and restarting kubelet..."
+
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
 
 echo "🚀 Initializing Kubernetes control plane..."
-sudo kubeadm init --control-plane-endpoint=10.5.0.8 --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=10.5.0.8
 
-echo "📁 Setting up kubeconfig for user 'ubuntu'..."
-sudo -u ubuntu mkdir -p /home/ubuntu/.kube
-sudo cp /etc/kubernetes/admin.conf /home/ubuntu/.kube/config
-sudo chown ubuntu:ubuntu /home/ubuntu/.kube/config
-sudo chown ubuntu:ubuntu /etc/kubernetes/admin.conf
+sudo kubeadm init --control-plane-endpoint=10.5.0.109 --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=10.5.0.109
+
+echo "📁 Setting up kubeconfig for user 'master'..."
+sudo -u master mkdir -p /home/master/.kube
+sudo cp /etc/kubernetes/admin.conf /home/master/.kube/config
+sudo chown master:master /home/master/.kube/config
+sudo chown master:master /etc/kubernetes/admin.conf
 sudo chmod 644 /etc/kubernetes/admin.conf
 
 echo "🌐 Deploying Flannel CNI network plugin..."
-sudo -u ubuntu kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+sudo -u master kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
 
 echo "🌐 (Optional) Deploying Calico CNI network plugin..."
-sudo -u ubuntu kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+sudo -u master kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
 echo "🔐 Generating join command and saving to token.txt..."
-kubeadm token create --print-join-command > /home/ubuntu/k8-nginx/token.txt
-sudo chown ubuntu:ubuntu /home/ubuntu/k8-nginx/token.txt
+kubeadm token create --print-join-command > /home/master/k8-nginx/token.txt
+sudo chown master:master /home/master/k8-nginx/token.txt
 
 echo "📦 Deploying MetalLB in native mode..."
-sudo -u ubuntu kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/main/config/manifests/metallb-native.yaml
+sudo -u master kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/main/config/manifests/metallb-native.yaml
 
 echo "❌ Removing MetalLB webhook validation to avoid issues..."
-sudo -u ubuntu kubectl delete validatingwebhookconfigurations metallb-webhook-configuration
+sudo -u master kubectl delete validatingwebhookconfigurations metallb-webhook-configuration
 
 echo "⚙️  Applying MetalLB address pool configuration..."
-sudo -u ubuntu kubectl apply -f /home/ubuntu/k8-nginx/metallb-config.yaml
+sudo -u master kubectl apply -f /home/master/k8-nginx/metallb-config.yaml
 
-echo "🧩 Enabling kubectl bash completion for user 'ubuntu'..."
+echo "🧩 Enabling kubectl bash completion for user 'master'..."
 sudo apt-get install bash-completion -y
-sudo -u ubuntu bash -c 'echo "source <(kubectl completion bash)" >> ~/.bashrc'
-sudo -u ubuntu bash -c 'echo "alias k=kubectl" >> ~/.bashrc'
-sudo -u ubuntu bash -c 'echo "complete -o default -F __start_kubectl k" >> ~/.bashrc'
+sudo -u master bash -c 'echo "source <(kubectl completion bash)" >> ~/.bashrc'
+sudo -u master bash -c 'echo "alias k=kubectl" >> ~/.bashrc'
+sudo -u master bash -c 'echo "complete -o default -F __start_kubectl k" >> ~/.bashrc'
 
 echo "📦 Installing Helm..."
 curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null

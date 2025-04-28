@@ -1,9 +1,21 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: nginx-modsecurity
+  namespace: nginx
+spec:
+  plugin:
+    traefik-modsecurity-plugin:
+      modSecurityUrl: "http://modsecurity-waf.security.svc.cluster.local:80"
+      maxBodySize: 10485760
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx-deployment
+  namespace: nginx
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: nginx
@@ -24,3 +36,61 @@ spec:
             requests:
               cpu: "250m"
               memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: nginx
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: nginx-frontend-cert
+  namespace: nginx
+spec:
+  secretName: nginx-frontend-cert-secret
+  issuerRef:
+    name: cloudflare-cluster-issuer
+    kind: ClusterIssuer
+  commonName: nginx.succeedex.in
+  dnsNames:
+    - nginx.succeedex.in
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: nginx-frontend-ingress
+  namespace: nginx
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`nginx.succeedex.in`)
+      kind: Rule
+      services:
+        - name: nginx-service
+          port: 80
+      middlewares:
+        - name: nginx-modsecurity
+        - name: rate-limit
+  tls:
+    secretName: nginx-frontend-cert-secret
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: rate-limit
+  namespace: nginx
+spec:
+  rateLimit:
+    average: 5
+    burst: 10
