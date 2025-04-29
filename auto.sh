@@ -26,7 +26,6 @@ sudo modprobe br_netfilter
 echo "🐳 Installing Docker..."
 curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
 sudo sh /tmp/get-docker.sh
-sudo usermod -aG docker $HOSTNAME
 echo "📁 Creating containerd configuration directory..."
 sudo mkdir -p /etc/containerd
 
