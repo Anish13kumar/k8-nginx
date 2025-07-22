@@ -59,39 +59,39 @@ sudo systemctl restart kubelet
 
 echo "🚀 Initializing Kubernetes control plane..."
 
-sudo kubeadm init --control-plane-endpoint=10.5.0.109 --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=10.5.0.109
+sudo kubeadm init --control-plane-endpoint=10.5.0.185 --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=10.5.0.185
 
-echo "📁 Setting up kubeconfig for user 'master'..."
-sudo -u master mkdir -p /home/master/.kube
-sudo cp /etc/kubernetes/admin.conf /home/master/.kube/config
-sudo chown master:master /home/master/.kube/config
-sudo chown master:master /etc/kubernetes/admin.conf
+echo "📁 Setting up kubeconfig for user 'node1'..."
+sudo -u node1 mkdir -p /home/node1/.kube
+sudo cp /etc/kubernetes/admin.conf /home/node1/.kube/config
+sudo chown node1:node1 /home/node1/.kube/config
+sudo chown node1:node1 /etc/kubernetes/admin.conf
 sudo chmod 644 /etc/kubernetes/admin.conf
 
 echo "🌐 Deploying Flannel CNI network plugin..."
-sudo -u master kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+sudo -u node1 kubectl apply -f  https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
 
 echo "🌐 (Optional) Deploying Calico CNI network plugin..."
-sudo -u master kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+sudo -u node1 kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
 echo "🔐 Generating join command and saving to token.txt..."
-kubeadm token create --print-join-command > /home/master/k8-nginx/token.txt
-sudo chown master:master /home/master/k8-nginx/token.txt
+kubeadm token create --print-join-command > /home/node1/k8-nginx/token.txt
+sudo chown node1:node1 /home/node1/k8-nginx/token.txt
 
 echo "📦 Deploying MetalLB in native mode..."
-sudo -u master kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/main/config/manifests/metallb-native.yaml
+sudo -u node1 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/main/config/manifests/metallb-native.yaml
 
 echo "❌ Removing MetalLB webhook validation to avoid issues..."
-sudo -u master kubectl delete validatingwebhookconfigurations metallb-webhook-configuration
+sudo -u node1 kubectl delete validatingwebhookconfigurations metallb-webhook-configuration
 
 echo "⚙️  Applying MetalLB address pool configuration..."
-sudo -u master kubectl apply -f https://raw.githubusercontent.com/Anish13kumar/k8-nginx/refs/heads/main/metallb-config.yaml
+sudo -u node1 kubectl apply -f metallb-config.yaml
 
-echo "🧩 Enabling kubectl bash completion for user 'master'..."
+echo "🧩 Enabling kubectl bash completion for user 'node1'..."
 sudo apt-get install bash-completion -y
-sudo -u master bash -c 'echo "source <(kubectl completion bash)" >> ~/.bashrc'
-sudo -u master bash -c 'echo "alias k=kubectl" >> ~/.bashrc'
-sudo -u master bash -c 'echo "complete -o default -F __start_kubectl k" >> ~/.bashrc'
+sudo -u node1 bash -c 'echo "source <(kubectl completion bash)" >> ~/.bashrc'
+sudo -u node1 bash -c 'echo "alias k=kubectl" >> ~/.bashrc'
+sudo -u node1 bash -c 'echo "complete -o default -F __start_kubectl k" >> ~/.bashrc'
 
 echo "📦 Installing Helm..."
 curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
